@@ -1,0 +1,25 @@
+{
+  "name": "speicherlotse",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"packages/**/*.test.ts\""
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.9.1",
+      "onFail": "download"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "fast-check": "^4.10.2",
+    "typescript": "^7.0.2"
+  }
+}
