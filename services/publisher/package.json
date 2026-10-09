@@ -1,0 +1,14 @@
+{
+  "name": "@speicherlotse/publisher",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/main.ts"
+  },
+  "dependencies": {
+    "@speicherlotse/telemetry-model": "workspace:*",
+    "@speicherlotse/wire": "workspace:*",
+    "mqtt": "^5.16.0"
+  }
+}

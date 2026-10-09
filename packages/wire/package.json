@@ -1,0 +1,10 @@
+{
+  "name": "@speicherlotse/wire",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "@speicherlotse/telemetry-model": "workspace:*"
+  }
+}
