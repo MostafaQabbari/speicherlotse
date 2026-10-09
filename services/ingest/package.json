@@ -1,0 +1,18 @@
+{
+  "name": "@speicherlotse/ingest",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/main.ts"
+  },
+  "dependencies": {
+    "@platformatic/kafka": "^2.14.0",
+    "@speicherlotse/telemetry-model": "workspace:*",
+    "@speicherlotse/wire": "workspace:*",
+    "mqtt": "^5.16.0"
+  },
+  "devDependencies": {
+    "mqtt-packet": "^9.0.2"
+  }
+}

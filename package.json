@@ -8,7 +8,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test \"packages/**/*.test.ts\""
+    "test": "node --test \"packages/**/*.test.ts\" \"services/**/*.test.ts\""
   },
   "devEngines": {
     "packageManager": {
