@@ -1,0 +1,17 @@
+{
+  "name": "@speicherlotse/writer",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "migrate": "node src/migrate-cli.ts",
+    "bench": "node src/bench.ts"
+  },
+  "dependencies": {
+    "@speicherlotse/telemetry-model": "workspace:*",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
+  }
+}
