@@ -56,7 +56,7 @@ Backfill storm: 1,000 devices reconnecting after 6 hours offline upload 21.6 mil
 ## Run it
 
 Needs Node 24 (see `.nvmrc`) and pnpm 12.9.1.
-
+docker compose up -d
 ```bash
 nvm use
 pnpm install
