@@ -1,4 +1,4 @@
-import type { Sample } from '../../telemetry-model/src/index.ts';
+import type { Sample } from '@speicherlotse/telemetry-model';
 import { evaluateCondition, type AlarmRule, type Severity } from './rule.ts';
 import { INITIAL_STATE, step, type AlarmEvent, type AlarmState } from './step.ts';
 

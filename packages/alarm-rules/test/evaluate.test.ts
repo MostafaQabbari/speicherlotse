@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fc from 'fast-check';
-import type { ChannelValues, Sample } from '../../telemetry-model/src/index.ts';
+import type { ChannelValues, Sample } from '@speicherlotse/telemetry-model';
 import { evaluate, NO_ALARMS, type AlarmTransition, type DeviceAlarms } from '../src/evaluate.ts';
 import { evaluateCondition, type AlarmRule } from '../src/rule.ts';
 import { DEFAULT_RULES } from '../src/default-rules.ts';

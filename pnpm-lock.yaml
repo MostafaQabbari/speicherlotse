@@ -176,6 +176,14 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  packages/alarm-rules:
+    dependencies:
+      '@speicherlotse/telemetry-model':
+        specifier: workspace:*
+        version: link:../telemetry-model
+
+  packages/telemetry-model: {}
+
 packages:
 
   '@types/node@24.19.1':

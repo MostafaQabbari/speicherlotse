@@ -11,7 +11,7 @@ A monitoring and energy-management cloud for home storage systems (PV, battery, 
 | Piece | What it does |
 |---|---|
 | `packages/telemetry-model` | The shared data contract: 16 channels with units and plausible ranges, the `Sample` type with three clocks, a power-balance check, a battery model, and a seeded simulator of one home (solar, house load, wallbox, self-consumption controller with backup reserve) |
-| `packages/alarm-rules` | A pure alarm state machine (normal, pending, firing, clearing) that ignores short blips and absorbs flapping, driven by event time |
+| `packages/alarm-rules` | A pure alarm state machine (normal, pending, firing, clearing) that ignores short blips and absorbs flapping, driven by event time , plus a rule layer: rules are plain data (a threshold on one channel, or the spread between two), and evaluate turns a sample into alarm events. A missing or implausible reading leaves an alarm unchanged. Four default rules ship (battery temperature at two levels, grid frequency, cell imbalance)|
 | `docs/adr/001-scope-and-numbers.md` | The scope and the capacity numbers the design is built on |
 | CI | Typecheck and tests on every push |
 
@@ -80,7 +80,7 @@ docs/adr/            architecture decision records
 - [x] Shared telemetry model and one-home simulator
 - [x] Alarm state machine
 - [x] CI
-- [ ] Rule layer: "battery above 55 °C for 60 s" evaluated on samples
+- [x] Rule layer: "battery above 55 °C for 60 s" evaluated on samples
 - [ ] Fleet simulator and walking skeleton: MQTT, ingest, Redpanda, writer, TimescaleDB
 - [ ] Load report v1 (rows/s per writer, freshness, memory)
 - [ ] NestJS API with multi-tenant row-level security, React dashboard

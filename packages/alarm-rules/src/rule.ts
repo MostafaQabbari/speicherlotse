@@ -1,5 +1,5 @@
-import type { ChannelName, ChannelValues } from '../../telemetry-model/src/index.ts';
-import { isPlausible } from '../../telemetry-model/src/index.ts';
+import type { ChannelName, ChannelValues } from '@speicherlotse/telemetry-model';
+import { isPlausible } from '@speicherlotse/telemetry-model';
 import type { Rule as Timing } from './step.ts';
 
 export type Severity = 'warning' | 'critical';
