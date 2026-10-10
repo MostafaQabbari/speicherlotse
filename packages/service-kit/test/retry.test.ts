@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { isTransient, withRetry } from '../src/retry.ts';
 import { codeError } from './helpers.ts';
-import { describeError } from '../src/pipeline.ts';
+import { describeError } from '../src/errors.ts';
 
 test('connection problems and server restarts are transient', () => {
   assert.equal(isTransient(codeError('ECONNREFUSED')), true);

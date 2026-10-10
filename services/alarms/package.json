@@ -1,15 +1,14 @@
 {
-  "name": "@speicherlotse/writer",
+  "name": "@speicherlotse/alarms",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node src/main.ts",
-    "migrate": "node src/migrate-cli.ts",
-    "bench": "node src/bench.ts"
+    "migrate": "node src/migrate-cli.ts"
   },
   "dependencies": {
-    "@platformatic/kafka": "^2.14.0",
+    "@speicherlotse/alarm-rules": "workspace:*",
     "@speicherlotse/service-kit": "workspace:*",
     "@speicherlotse/telemetry-model": "workspace:*",
     "@speicherlotse/wire": "workspace:*",

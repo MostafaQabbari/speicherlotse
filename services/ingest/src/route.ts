@@ -1,9 +1,7 @@
-import { decodeBatch, parseTopic } from '@speicherlotse/wire';
+import { decodeBatch, parseTopic, RAW_TOPIC, REJECTED_TOPIC } from '@speicherlotse/wire';
 
-/** Kafka topic for batches that passed validation. */
-export const RAW_TOPIC = 'telemetry.raw';
-/** Kafka topic for messages we refused, with the reason. Nothing is silently dropped. */
-export const REJECTED_TOPIC = 'telemetry.rejected';
+// The topic names live in the wire package so that every service uses the same ones.
+export { RAW_TOPIC, REJECTED_TOPIC };
 
 /** An MQTT message larger than this is refused without even parsing it. 100 samples are about 20 KB. */
 export const MAX_PAYLOAD_BYTES = 64 * 1024;

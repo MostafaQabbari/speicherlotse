@@ -6,6 +6,21 @@ export const WIRE_VERSION = 1;
 /** A batch is at most this many samples. Protects readers from absurd messages. */
 export const MAX_SAMPLES_PER_BATCH = 100;
 
+// ── Kafka topics and clock limits shared by the services ───────────
+
+/** Kafka topic for batches that passed validation (written by ingest, read by the writer and the alarm engine). */
+export const RAW_TOPIC = 'telemetry.raw';
+/** Kafka topic for messages we refused, with the reason. Nothing is silently dropped. */
+export const REJECTED_TOPIC = 'telemetry.rejected';
+
+/**
+ * A device clock outside 2000..2100 is treated as unset or broken (a device that never synchronised sends 1970).
+ * The writer rejects such samples instead of creating chunks for the year 1970; the alarm engine ignores them.
+ */
+export const CLOCK_MIN_MS = Date.UTC(2000, 0, 1);
+export const CLOCK_MAX_MS = Date.UTC(2100, 0, 1);
+export const clockIsPlausible = (wallMs: number): boolean => wallMs >= CLOCK_MIN_MS && wallMs < CLOCK_MAX_MS;
+
 // ── topics ──────────────────────────────────────────────────────────
 
 export function topicFor(deviceId: number): string {

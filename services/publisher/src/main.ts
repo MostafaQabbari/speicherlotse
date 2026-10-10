@@ -9,7 +9,14 @@ const TICK_MS = Number(process.env.TICK_MS ?? 1000);       // real time between 
 const BATCH_SIZE = Number(process.env.BATCH_SIZE ?? 5);    // samples per MQTT message (ADR-001: 5)
 const SECONDS = Number(process.env.SECONDS ?? 0);          // stop after this many real seconds; 0 = run until Ctrl+C
 
-for (const [name, v] of Object.entries({ SYSTEMS, TICK_MS, BATCH_SIZE, SECONDS })) {
+// A simple fault, to see alarms: this home's battery reads 60 °C from HOT_FROM_S for HOT_FOR_S seconds of
+// simulated time (one simulated second per tick). 0 = no fault. The fleet simulator will replace this with real fault injection.
+const HOT_DEVICE = Number(process.env.HOT_DEVICE ?? 0);
+const HOT_FROM_S = Number(process.env.HOT_FROM_S ?? 10);
+const HOT_FOR_S = Number(process.env.HOT_FOR_S ?? 90);
+const HOT_TEMP_C = 60;
+
+for (const [name, v] of Object.entries({ SYSTEMS, TICK_MS, BATCH_SIZE, SECONDS, HOT_DEVICE, HOT_FROM_S, HOT_FOR_S })) {
   if (!Number.isFinite(v) || v < 0) throw new Error(`${name} must be a non-negative number`);
 }
 
@@ -27,7 +34,8 @@ const client = await connectAsync(MQTT_URL);
 console.log(`connected to ${MQTT_URL}; ${homes.length} homes, one sample every ${TICK_MS} ms, ${BATCH_SIZE} samples per message`);
 
 let published = 0;
-let simMs = Date.now();   // simulated device clock; advances 1 s per tick
+const startMs = Date.now();
+let simMs = startMs;      // simulated device clock; advances 1 s per tick
 
 async function publish(home: Home): Promise<void> {
   const payload = encodeBatch(home.buffer);
@@ -44,7 +52,9 @@ async function tick(): Promise<void> {
   for (const home of homes) {
     const r = stepHome(home.cfg, home.state, simMs, 1);
     home.state = r.state;
-    home.buffer.push(r.sample);
+    const simS = (simMs - startMs) / 1_000;
+    const hot = home.cfg.deviceId === HOT_DEVICE && simS >= HOT_FROM_S && simS < HOT_FROM_S + HOT_FOR_S;
+    home.buffer.push(hot ? { ...r.sample, values: { ...r.sample.values, battTempC: HOT_TEMP_C } } : r.sample);
     if (home.buffer.length >= BATCH_SIZE) sends.push(publish(home));
   }
   await Promise.all(sends);

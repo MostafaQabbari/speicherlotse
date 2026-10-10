@@ -4,7 +4,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import pg from 'pg';
 import { migrate } from '../src/migrate.ts';
-import { Pipeline } from '../src/pipeline.ts';
+import { writerPipeline } from '../src/pipeline.ts';
 import { message } from './helpers.ts';
 
 const URL = process.env.TEST_DATABASE_URL;
@@ -35,7 +35,7 @@ test('at the moment of each commit, the rows of that message are already in the 
     m.commit = async () => { seenAtCommit.push(await count()); };
     return m;
   };
-  const p = new Pipeline({ db, maxMessages: 2 });
+  const p = writerPipeline({ db, maxMessages: 2 });
   const start = await count();
   await p.add(mk(0, 10, 0));
   await p.add(mk(1, 10, 5));    // full batch: 10 rows, one commit
@@ -45,7 +45,7 @@ test('at the moment of each commit, the rows of that message are already in the 
 });
 
 test('a redelivered message (same samples, new offset) changes nothing and is counted as duplicates', { skip }, async () => {
-  const p = new Pipeline({ db, maxMessages: 2 });
+  const p = writerPipeline({ db, maxMessages: 2 });
   const start = await count();
   await p.add(message(0, 100, 20, 0, 5));
   await p.add(message(0, 101, 21, 0, 5));

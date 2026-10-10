@@ -1,6 +1,7 @@
 import pg from 'pg';
-import { openKafkaSource } from './kafka.ts';
-import { Pipeline, pump } from './pipeline.ts';
+  import { openKafkaSource, pump } from '@speicherlotse/service-kit';
+  import { RAW_TOPIC } from '@speicherlotse/wire';
+  import { writerPipeline } from './pipeline.ts';
 
 // ── settings (all optional, set as environment variables) ──────────
 const KAFKA_BROKERS = (process.env.KAFKA_BROKERS ?? 'localhost:19092').split(',');
@@ -8,7 +9,7 @@ const DATABASE_URL = process.env.DATABASE_URL ?? 'postgres://postgres:postgres@l
 const GROUP_ID = process.env.GROUP_ID ?? 'speicherlotse-writer';
 const BATCH_MESSAGES = Number(process.env.BATCH_MESSAGES ?? 200);   // 200 messages x 5 samples = 1,000 rows (ADR-001)
 const MAX_WAIT_MS = Number(process.env.MAX_WAIT_MS ?? 1_000);       // a small batch is written after this long
-const RAW_TOPIC = 'telemetry.raw';                                   // must match services/ingest/src/route.ts
+
 
 for (const [name, v] of Object.entries({ BATCH_MESSAGES, MAX_WAIT_MS })) {
   if (!Number.isInteger(v) || v < 1) throw new Error(`${name} must be a positive integer`);
@@ -18,7 +19,7 @@ const pool = new pg.Pool({ connectionString: DATABASE_URL, max: 2 });
 // A database restart makes idle connections fail. Without this listener Node would treat it as a crash.
 pool.on('error', (err) => console.error(`database connection lost (the pool reconnects): ${err.message}`));
 
-const pipeline = new Pipeline({
+const pipeline = writerPipeline({
   db: pool,
   maxMessages: BATCH_MESSAGES,
   maxWaitMs: MAX_WAIT_MS,
@@ -37,7 +38,7 @@ const line = (): string => {
 
 let source;
 try {
-  source = await openKafkaSource({ brokers: KAFKA_BROKERS, groupId: GROUP_ID, topic: RAW_TOPIC });
+  source = await openKafkaSource({ brokers: KAFKA_BROKERS, groupId: GROUP_ID, topic: RAW_TOPIC, clientId: 'speicherlotse-writer' });
 } catch (err) {
   console.error(`cannot reach Kafka at ${KAFKA_BROKERS.join(',')}: ${(err as Error).message}`);
   await pool.end();

@@ -1,4 +1,5 @@
 import { CHANNELS, CHANNEL_NAMES, type ChannelName, type Sample } from '@speicherlotse/telemetry-model';
+import { clockIsPlausible } from '@speicherlotse/wire';
 
 /** `battTempC` -> `batt_temp_c`. The table columns are the channel names in snake_case. */
 export function columnFor(name: ChannelName): string {
@@ -26,9 +27,7 @@ export interface Rejected {
 
 const INT4_MAX = 2_147_483_647;
 const INT2_MAX = 32_767;
-// Device clocks that were never set show 1970; a typo can show year 50000. Neither fits a sane chart.
-const MIN_TS_MS = Date.UTC(2000, 0, 1);
-const MAX_TS_MS = Date.UTC(2100, 0, 1);
+
 
 /**
  * Turns decoded samples into rows. The wire layer is deliberately lenient about values (any finite number),
@@ -50,7 +49,7 @@ export function toRows(samples: readonly Sample[]): { rows: Row[]; rejected: Rej
     if (!Number.isInteger(s.deviceId) || s.deviceId < 1 || s.deviceId > INT4_MAX) reason = 'deviceId out of range';
     else if (!Number.isSafeInteger(s.bootId) || s.bootId < 0) reason = 'bootId out of range';
     else if (!Number.isInteger(s.seq) || s.seq < 0 || s.seq > INT4_MAX) reason = 'seq out of range';
-    else if (!(tsMs >= MIN_TS_MS && tsMs < MAX_TS_MS)) reason = 'wallMs outside 2000..2100';
+    else if (!clockIsPlausible(tsMs)) reason = 'wallMs outside 2000..2100';
     else if (!Number.isSafeInteger(monoMs) || monoMs < 0) reason = 'monoMs out of range';
     if (reason !== null) {
       rejected.push({ sample: s, reason });
