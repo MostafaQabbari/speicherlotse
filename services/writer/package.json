@@ -4,11 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node src/main.ts",
     "migrate": "node src/migrate-cli.ts",
     "bench": "node src/bench.ts"
   },
   "dependencies": {
+    "@platformatic/kafka": "^2.14.0",
     "@speicherlotse/telemetry-model": "workspace:*",
+    "@speicherlotse/wire": "workspace:*",
     "pg": "^8.23.1"
   },
   "devDependencies": {

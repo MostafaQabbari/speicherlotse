@@ -223,9 +223,15 @@ importers:
 
   services/writer:
     dependencies:
+      '@platformatic/kafka':
+        specifier: ^2.14.0
+        version: 2.14.0
       '@speicherlotse/telemetry-model':
         specifier: workspace:*
         version: link:../../packages/telemetry-model
+      '@speicherlotse/wire':
+        specifier: workspace:*
+        version: link:../../packages/wire
       pg:
         specifier: ^8.23.1
         version: 8.23.1
