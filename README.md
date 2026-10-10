@@ -4,7 +4,7 @@
 
 A monitoring and energy-management cloud for home storage systems (PV, battery, wallbox), built as a portfolio project. Simulated homes send telemetry; the cloud ingests it, stores it, raises alarms and shows it live.
 
-**Status: in progress.** The path from a simulated home to the database works end to end and is tested, including database outages. Alarms are raised from the same stream and announced by a notifier (webhook), with crash and redelivery handling. The API and dashboard are planned and not built yet. This README says which is which.
+**Status: in progress.** The path from a simulated home to the database works end to end and is tested, including database outages. Alarms are raised from the same stream and announced by a notifier (webhook), with crash and redelivery handling. A read-only API serves devices, telemetry and alarm events to several tenants, and the database itself keeps one tenant away from another's data. The dashboard is planned and not built yet. This README says which is which.
 
 ## What exists today
 
@@ -19,8 +19,9 @@ A monitoring and energy-management cloud for home storage systems (PV, battery, 
 | `services/writer` | Kafka consumer group to TimescaleDB: batched, idempotent insert; offsets committed only after the rows are stored; waits out database outages with backoff |
 | `services/alarms` | A second consumer group on `telemetry.raw`: runs the alarm rules per device and stores watermark, alarm state and alarm events in one transaction per batch, so a restart or a redelivery changes nothing (ADR-004) |
 | `services/notifier` | Sends each alarm event to a webhook (or the console): a database trigger queues it, delivery is at least once with an idempotency key, retries with backoff, order kept within one alarm (ADR-005) |
-| `docs/adr/` | Decision records: scope and numbers (001), storage schema (002), write path (003), alarm engine (004), notifier (005) |
-| CI | Typecheck and all tests on every push, with a real PostgreSQL for the writer's database tests |
+| `services/api` | NestJS HTTP API, read-only: a tenant's devices, telemetry and alarm events. The queries never mention the tenant; row-level security and a tenant-checking function in the database do (ADR-006). Development tokens (JWT) carry the tenant |
+| `docs/adr/` | Decision records: scope and numbers (001), storage schema (002), write path (003), alarm engine (004), notifier (005), API and tenant isolation (006) |
+| CI | Typecheck and all tests on every push, with a real PostgreSQL for the database tests |
 
 Packages contain no I/O and are covered by example tests and property-based tests (random inputs checked against rules such as "a battery never creates energy" and "alarms strictly alternate between fired and resolved"). The services are covered by tests with fake brokers, plus database tests against a real PostgreSQL. The Kafka adapter and the outage behaviour were also tried by hand against Redpanda and TimescaleDB (stop and start the database while the writer runs; no sample lost or doubled). The alarm engine was tried by hand too: a simulated overheating battery produced exactly four events at the expected times; restarting the engine in the middle of an alarm produced no duplicate; and rewinding Kafka to the start made the engine skip all 2,367 old samples and change nothing.
 
@@ -37,12 +38,12 @@ flowchart LR
   alarms --> adb[(alarm_event + outbox)]
   adb --> notifier[Notifier]
   notifier --> hook[Webhook receiver]
-  db -.-> api[API]
-  adb -.-> api
+  db --> api[API]
+  adb --> api
   api -.-> ui[Dashboard]
 ```
 
-Solid arrows exist. Dotted arrows are planned. Delivery is at-least-once at every hop. The final insert is idempotent, so a redelivered message adds no rows (see [ADR-003](docs/adr/003-write-path.md)); the alarm engine skips samples it has already seen (a per-device watermark, [ADR-004](docs/adr/004-alarm-engine.md)); and every notification carries a stable id in an `Idempotency-Key` header so the receiver can drop duplicates ([ADR-005](docs/adr/005-notifier.md)).
+Solid arrows exist. Dotted arrows are planned. Delivery is at-least-once at every hop. The final insert is idempotent, so a redelivered message adds no rows (see [ADR-003](docs/adr/003-write-path.md)); the alarm engine skips samples it has already seen (a per-device watermark, [ADR-004](docs/adr/004-alarm-engine.md)); and every notification carries a stable id in an `Idempotency-Key` header so the receiver can drop duplicates ([ADR-005](docs/adr/005-notifier.md)). The API reads through a database role that row-level security restricts to one tenant per request ([ADR-006](docs/adr/006-api-and-tenant-isolation.md)).
 
 ## Design targets and measurements
 
@@ -69,10 +70,11 @@ Measured on one development laptop (Intel i5-6300U, 2 cores, 16 GB, Docker Deskt
 - **Illegal states unrepresentable.** Discriminated unions and exhaustive `switch` make the compiler reject unhandled cases.
 - **Acknowledge only what is stored.** A message is confirmed to its sender only after the next hop has it durably.
 - **Queue in the same transaction.** An alarm event and its notification are written together by the database, so one cannot exist without the other.
+- **Isolation in the database, not in the query.** The API's queries do not mention the tenant. The database decides what a request may see, so a forgotten `WHERE` cannot leak another customer's data.
 
 ## Run it
 
-Needs Node 24 (see `.nvmrc`), pnpm 12.9.1 and Docker.
+Needs Node 24 (see `.nvmrc`), pnpm 12.9.1 and Docker. The services run as plain TypeScript. Only the API starts through [`tsx`](https://tsx.is), because NestJS needs decorators, which Node cannot run (ADR-006); `pnpm test` runs all tests through `tsx`.
 
 ```bash
 nvm use
@@ -117,6 +119,31 @@ pnpm --filter @speicherlotse/publisher start
 
 The alarm engine prints four `ALARM` lines (critical and high fired, then both resolved) and so does the notifier. To send them to a webhook instead, start a small receiver (`pnpm --filter @speicherlotse/notifier receiver`, `FAIL_FIRST=2` makes it refuse the first two requests so you can watch the retries) and start the notifier with `WEBHOOK_URL=http://localhost:8099/hook`.
 
+### Run the API
+
+Needs the writer and alarms migrations first (the API's migration adds rules to their tables). Windows PowerShell:
+
+```powershell
+pnpm --filter @speicherlotse/api migrate   # tenants, the restricted role, row-level security
+pnpm --filter @speicherlotse/api seed      # two demo tenants: alpha owns devices 1 and 2, beta owns device 3
+
+$env:JWT_SECRET = node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+pnpm --filter @speicherlotse/api start     # http://127.0.0.1:3000
+```
+
+In a second terminal, with the same secret (`$env:JWT_SECRET = "<the value from the first terminal>"`):
+
+```powershell
+$alpha = node services/api/src/token-cli.ts alpha
+$beta  = node services/api/src/token-cli.ts beta
+curl.exe -s -H "Authorization: Bearer $alpha" http://127.0.0.1:3000/v1/devices
+curl.exe -s -H "Authorization: Bearer $alpha" "http://127.0.0.1:3000/v1/devices/1/telemetry?limit=3"
+curl.exe -s -H "Authorization: Bearer $alpha" http://127.0.0.1:3000/v1/devices/3/telemetry     # beta's device: 404, like a device that does not exist
+curl.exe -s -H "Authorization: Bearer $beta"  http://127.0.0.1:3000/v1/alarms/events
+```
+
+Routes: `GET /health`, `GET /v1/devices`, `GET /v1/devices/:id/telemetry?from&to&limit`, `GET /v1/alarms/events?deviceId&from&to&limit` (ADR-006 has the rules for the parameters).
+
 Stop with Ctrl+C in each terminal (the services first, so they finish what they hold), then `docker compose stop`. `docker compose down -v` also deletes the stored data.
 
 ```bash
@@ -139,6 +166,7 @@ services/
   writer/            Kafka -> TimescaleDB (SQL migrations in sql/)
   alarms/            Kafka -> alarm rules -> alarm tables (SQL migrations in sql/)
   notifier/          alarm events -> webhook, with retries (SQL migrations in sql/; dev-receiver.ts for trying it)
+  api/               NestJS HTTP API with tenant isolation by row-level security (SQL migrations in sql/)
 infra/mosquitto/     broker configuration for local development
 docs/adr/            architecture decision records
 ```
@@ -155,7 +183,8 @@ docs/adr/            architecture decision records
 - [ ] Fault-to-alarm report (needs the fleet simulator)
 - [ ] Fleet simulator (up to 1,000 systems) with fault injection (dropouts, glitches, clock jumps, reboots)
 - [ ] Load report v1 (rows/s through the whole chain, freshness, memory)
-- [ ] NestJS API with multi-tenant row-level security, React dashboard
+- [x] NestJS API with multi-tenant row-level security (read-only, development tokens)
+- [ ] React dashboard
 - [ ] Chaos and load report v2 (backfill storm, kill tests, scale-out)
 
 ## Known limits
@@ -166,6 +195,8 @@ docs/adr/            architecture decision records
 - Alarm engine and notifier each run as a single instance. If a device's clock jumps backwards, its alarms are silent until the clock catches up (ADR-004).
 - Notifications are delivered at least once: a crash at the wrong moment sends one twice, so the receiver has to drop duplicates by id. A notification that keeps failing is abandoned after 8 attempts and stays in the table for a person to look at; nothing replays it automatically (ADR-005).
 - Only a webhook and the console exist as notification channels. Old notifications are never deleted.
+- The API protects against mistakes in queries, not against someone who can run arbitrary SQL as its database role: the tenant is a session setting (ADR-006). Tokens are development tokens: one shared secret, no users, no revocation. There is no rate limit, no CORS and no TLS yet, and lists have no paging cursor.
+- The telemetry function behind the API was tested on plain PostgreSQL. Its behaviour on TimescaleDB chunks, compressed ones included, is not measured yet.
 
 ## Data sources (planned)
 

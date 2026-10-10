@@ -1,0 +1,28 @@
+{
+  "name": "@speicherlotse/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --import tsx src/main.ts",
+    "migrate": "node src/migrate-cli.ts",
+    "seed": "node src/seed-cli.ts",
+    "token": "node src/token-cli.ts"
+  },
+  "dependencies": {
+    "@nestjs/common": "^12.1.2",
+    "@nestjs/core": "^12.1.2",
+    "@nestjs/platform-express": "^12.1.2",
+    "@speicherlotse/service-kit": "workspace:*",
+    "@speicherlotse/telemetry-model": "workspace:*",
+    "jose": "^6.2.12",
+    "pg": "^8.23.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/testing": "^12.1.2",
+    "@types/express": "^5.0.0",
+    "@types/pg": "^8.23.1"
+  }
+}

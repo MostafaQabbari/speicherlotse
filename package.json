@@ -8,7 +8,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --test \"packages/**/*.test.ts\" \"services/**/*.test.ts\""
+    "test": "node --import tsx --test \"packages/**/*.test.ts\" \"services/**/*.test.ts\""
   },
   "devEngines": {
     "packageManager": {
@@ -20,6 +20,7 @@
   "devDependencies": {
     "@types/node": "^24.19.1",
     "fast-check": "^4.10.2",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }
 }
