@@ -1,6 +1,6 @@
 # ADR-003: From Kafka to the database
 
-- Status: accepted. Verified with a fake message source against a real PostgreSQL (including a database crash and restart); *to verify:* end to end against Redpanda.
+- Status: accepted. Verified with a fake message source against a real PostgreSQL (including a database crash and restart), and by hand end to end against Redpanda and TimescaleDB, including stopping and starting the database while the writer runs.
 - Date: 2026-10-10
 
 ## Context
