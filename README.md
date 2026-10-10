@@ -4,7 +4,7 @@
 
 A monitoring and energy-management cloud for home storage systems (PV, battery, wallbox), built as a portfolio project. Simulated homes send telemetry; the cloud ingests it, stores it, raises alarms and shows it live.
 
-**Status: in progress.** The path from a simulated home to the database works end to end and is tested, including database outages. The alarm engine, API and dashboard are planned and not built yet. This README says which is which.
+**Status: in progress.** The path from a simulated home to the database works end to end and is tested, including database outages. Alarms are raised from the same stream and announced by a notifier (webhook), with crash and redelivery handling. The API and dashboard are planned and not built yet. This README says which is which.
 
 ## What exists today
 
@@ -15,11 +15,14 @@ A monitoring and energy-management cloud for home storage systems (PV, battery, 
 | `packages/wire` | The MQTT wire format: topics, versioned JSON envelope, encode and decode. Decoding never throws and rejects broken input with a reason |
 | `services/publisher` | Simulated homes publishing telemetry to MQTT (QoS 1, batches of 5 samples) |
 | `services/ingest` | Subscribes to MQTT, validates, writes to Kafka topic `telemetry.raw` (key = device id) and acknowledges the MQTT message only after Kafka confirmed the write |
+| `packages/service-kit` | What the Kafka services share: a batching pipeline (commit only after the work is durable, retry of transient errors), the Kafka source, SQL migrations |
 | `services/writer` | Kafka consumer group to TimescaleDB: batched, idempotent insert; offsets committed only after the rows are stored; waits out database outages with backoff |
-| `docs/adr/` | Decision records: scope and numbers (001), storage schema (002), write path (003) |
+| `services/alarms` | A second consumer group on `telemetry.raw`: runs the alarm rules per device and stores watermark, alarm state and alarm events in one transaction per batch, so a restart or a redelivery changes nothing (ADR-004) |
+| `services/notifier` | Sends each alarm event to a webhook (or the console): a database trigger queues it, delivery is at least once with an idempotency key, retries with backoff, order kept within one alarm (ADR-005) |
+| `docs/adr/` | Decision records: scope and numbers (001), storage schema (002), write path (003), alarm engine (004), notifier (005) |
 | CI | Typecheck and all tests on every push, with a real PostgreSQL for the writer's database tests |
 
-Packages contain no I/O and are covered by example tests and property-based tests (random inputs checked against rules such as "a battery never creates energy" and "alarms strictly alternate between fired and resolved"). The services are covered by tests with fake brokers, plus database tests against a real PostgreSQL. The Kafka adapter and the outage behaviour were also tried by hand against Redpanda and TimescaleDB (stop and start the database while the writer runs; no sample lost or doubled).
+Packages contain no I/O and are covered by example tests and property-based tests (random inputs checked against rules such as "a battery never creates energy" and "alarms strictly alternate between fired and resolved"). The services are covered by tests with fake brokers, plus database tests against a real PostgreSQL. The Kafka adapter and the outage behaviour were also tried by hand against Redpanda and TimescaleDB (stop and start the database while the writer runs; no sample lost or doubled). The alarm engine was tried by hand too: a simulated overheating battery produced exactly four events at the expected times; restarting the engine in the middle of an alarm produced no duplicate; and rewinding Kafka to the start made the engine skip all 2,367 old samples and change nothing.
 
 ## Architecture
 
@@ -30,13 +33,16 @@ flowchart LR
   ingest --> log[Kafka log]
   log --> writer[TSDB writer]
   writer --> db[(PostgreSQL + TimescaleDB)]
-  log -.-> alarms[Alarm engine]
-  alarms -.-> notifier[Notifier]
+  log --> alarms[Alarm engine]
+  alarms --> adb[(alarm_event + outbox)]
+  adb --> notifier[Notifier]
+  notifier --> hook[Webhook receiver]
   db -.-> api[API]
+  adb -.-> api
   api -.-> ui[Dashboard]
 ```
 
-Solid arrows exist. Dotted arrows are planned. Delivery is at-least-once at every hop and the final insert is idempotent, so a redelivered message adds no rows (see [ADR-003](docs/adr/003-write-path.md)).
+Solid arrows exist. Dotted arrows are planned. Delivery is at-least-once at every hop. The final insert is idempotent, so a redelivered message adds no rows (see [ADR-003](docs/adr/003-write-path.md)); the alarm engine skips samples it has already seen (a per-device watermark, [ADR-004](docs/adr/004-alarm-engine.md)); and every notification carries a stable id in an `Idempotency-Key` header so the receiver can drop duplicates ([ADR-005](docs/adr/005-notifier.md)).
 
 ## Design targets and measurements
 
@@ -62,6 +68,7 @@ Measured on one development laptop (Intel i5-6300U, 2 cores, 16 GB, Docker Deskt
 - **Determinism.** The simulator takes a seed, so any run can be reproduced exactly.
 - **Illegal states unrepresentable.** Discriminated unions and exhaustive `switch` make the compiler reject unhandled cases.
 - **Acknowledge only what is stored.** A message is confirmed to its sender only after the next hop has it durably.
+- **Queue in the same transaction.** An alarm event and its notification are written together by the database, so one cannot exist without the other.
 
 ## Run it
 
@@ -90,16 +97,32 @@ docker compose up -d
 docker compose exec redpanda rpk topic create telemetry.raw -p 6   # "already exists" is fine
 pnpm --filter @speicherlotse/writer migrate                        # creates the table, hypertable and policies
 
+pnpm --filter @speicherlotse/alarms migrate                        # alarm tables
+pnpm --filter @speicherlotse/notifier migrate                      # notification outbox (run after the alarms migration)
+
 # one terminal each:
 pnpm --filter @speicherlotse/writer start      # Kafka -> TimescaleDB
+pnpm --filter @speicherlotse/alarms start      # Kafka -> alarm tables
+pnpm --filter @speicherlotse/notifier start    # outbox -> console, or a webhook if WEBHOOK_URL is set
 pnpm --filter @speicherlotse/ingest start      # MQTT -> Kafka
 pnpm --filter @speicherlotse/publisher start   # 3 simulated homes, 1 sample/s each (SYSTEMS, TICK_MS, SECONDS are environment variables)
 ```
 
-Stop with Ctrl+C in each terminal (writer first, so it commits what it has), then `docker compose stop`. `docker compose down -v` also deletes the stored data.
+To see an alarm, let one battery overheat for a while (simulated time runs five times faster here):
+
+```powershell
+$env:HOT_DEVICE = 2; $env:HOT_FROM_S = 20; $env:HOT_FOR_S = 90; $env:TICK_MS = 200; $env:SECONDS = 60
+pnpm --filter @speicherlotse/publisher start
+```
+
+The alarm engine prints four `ALARM` lines (critical and high fired, then both resolved) and so does the notifier. To send them to a webhook instead, start a small receiver (`pnpm --filter @speicherlotse/notifier receiver`, `FAIL_FIRST=2` makes it refuse the first two requests so you can watch the retries) and start the notifier with `WEBHOOK_URL=http://localhost:8099/hook`.
+
+Stop with Ctrl+C in each terminal (the services first, so they finish what they hold), then `docker compose stop`. `docker compose down -v` also deletes the stored data.
 
 ```bash
 docker compose exec timescaledb psql -U postgres -d speicherlotse -c "select device_id, count(*) from telemetry group by 1;"
+docker compose exec timescaledb psql -U postgres -d speicherlotse -c "select device_id, rule_id, event, at from alarm_event order by at_ms;"
+docker compose exec timescaledb psql -U postgres -d speicherlotse -c "select rule_id, event, attempts, sent_at, last_error from notification_outbox order by at_ms;"
 ```
 
 ## Repository layout
@@ -109,10 +132,13 @@ packages/
   telemetry-model/   channels, Sample, balance check, battery and home simulator
   alarm-rules/       alarm state machine and rule layer
   wire/              MQTT topics and message format
+  service-kit/       batching pipeline, retry, Kafka source and SQL migrations shared by the Kafka services
 services/
   publisher/         simulated homes -> MQTT
   ingest/            MQTT -> Kafka
   writer/            Kafka -> TimescaleDB (SQL migrations in sql/)
+  alarms/            Kafka -> alarm rules -> alarm tables (SQL migrations in sql/)
+  notifier/          alarm events -> webhook, with retries (SQL migrations in sql/; dev-receiver.ts for trying it)
 infra/mosquitto/     broker configuration for local development
 docs/adr/            architecture decision records
 ```
@@ -124,7 +150,9 @@ docs/adr/            architecture decision records
 - [x] Alarm state machine and rule layer
 - [x] CI
 - [x] Walking skeleton: simulator, MQTT, ingest, Redpanda, writer, TimescaleDB, with outage tests
-- [ ] Alarm engine as a second Kafka consumer, notifier, fault-to-alarm report
+- [x] Alarm engine as a second Kafka consumer with persistent state
+- [x] Notifier: outbox, webhook, retries, order within an alarm
+- [ ] Fault-to-alarm report (needs the fleet simulator)
 - [ ] Fleet simulator (up to 1,000 systems) with fault injection (dropouts, glitches, clock jumps, reboots)
 - [ ] Load report v1 (rows/s through the whole chain, freshness, memory)
 - [ ] NestJS API with multi-tenant row-level security, React dashboard
@@ -134,7 +162,10 @@ docs/adr/            architecture decision records
 
 - A device whose clock is unset (1970) has its samples rejected by the writer. A later change can fall back to the time the message was received.
 - A message the writer cannot store for a non-transient reason stops the writer (it exits rather than skip data). A dead-letter topic for such messages is planned.
-- Only the insert speed was measured; end-to-end throughput was not.
+- Only the insert speed was measured; end-to-end throughput was not. The cost of the alarm engine's writes and the notification latency were not measured either.
+- Alarm engine and notifier each run as a single instance. If a device's clock jumps backwards, its alarms are silent until the clock catches up (ADR-004).
+- Notifications are delivered at least once: a crash at the wrong moment sends one twice, so the receiver has to drop duplicates by id. A notification that keeps failing is abandoned after 8 attempts and stays in the table for a person to look at; nothing replays it automatically (ADR-005).
+- Only a webhook and the console exist as notification channels. Old notifications are never deleted.
 
 ## Data sources (planned)
 

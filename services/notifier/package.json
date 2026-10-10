@@ -1,0 +1,18 @@
+{
+  "name": "@speicherlotse/notifier",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/main.ts",
+    "migrate": "node src/migrate-cli.ts",
+    "receiver": "node src/dev-receiver.ts"
+  },
+  "dependencies": {
+    "@speicherlotse/service-kit": "workspace:*",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
+  }
+}
