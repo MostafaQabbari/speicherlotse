@@ -9,7 +9,6 @@
     "bench": "node src/bench.ts"
   },
   "dependencies": {
-    "@platformatic/kafka": "^2.14.0",
     "@speicherlotse/service-kit": "workspace:*",
     "@speicherlotse/telemetry-model": "workspace:*",
     "@speicherlotse/wire": "workspace:*",

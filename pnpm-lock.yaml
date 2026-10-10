@@ -258,9 +258,6 @@ importers:
 
   services/writer:
     dependencies:
-      '@platformatic/kafka':
-        specifier: ^2.14.0
-        version: 2.14.0
       '@speicherlotse/service-kit':
         specifier: workspace:*
         version: link:../../packages/service-kit
