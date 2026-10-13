@@ -1,0 +1,2 @@
+# Generated and hand-checked files must be byte-identical on every machine.
+*.json text eol=lf

@@ -1,0 +1,43 @@
+{
+  "name": "@speicherlotse/dashboard",
+  "version": "0.0.0",
+  "scripts": {
+    "generate": "ng-openapi-gen --input ../../services/api/openapi.json --output src/app/api",
+    "prestart": "pnpm run generate",
+    "start": "ng serve",
+    "prebuild": "pnpm run generate",
+    "build": "ng build",
+    "pretest": "pnpm run generate",
+    "test": "ng test --watch=false",
+    "pretypecheck": "pnpm run generate",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.spec.json"
+  },
+  "private": true,
+  "dependencies": {
+    "@angular/common": "^22.2.0",
+    "@angular/compiler": "^22.2.0",
+    "@angular/core": "^22.2.0",
+    "@angular/forms": "^22.2.0",
+    "@angular/platform-browser": "^22.2.0",
+    "@angular/router": "^22.2.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^22.2.2",
+    "@angular/cli": "^22.2.2",
+    "@angular/compiler-cli": "^22.2.0",
+    "jsdom": "^30.0.0",
+    "prettier": "^3.8.1",
+    "typescript": "~6.0.2",
+    "vitest": "^5.0.0",
+    "ng-openapi-gen": "^1.1.0",
+    "axe-core": "^4.11.0"
+  },
+  "type": "module",
+  "nx": {
+    "implicitDependencies": [
+      "@speicherlotse/api"
+    ]
+  }
+}

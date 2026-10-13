@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "neverConnectToCloud": true,
+  "analytics": false,
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*", "{workspaceRoot}/services/api/openapi.json", "!{projectRoot}/dist/**", "!{projectRoot}/.angular/**"]
+  },
+  "targetDefaults": {
+    "build": { "cache": true },
+    "test": { "cache": true },
+    "typecheck": { "cache": true }
+  }
+}

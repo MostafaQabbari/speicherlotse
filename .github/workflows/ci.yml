@@ -46,3 +46,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
+
+      # The dashboard (Angular) has its own TypeScript version, so it is checked on its own: types, unit tests
+      # (including an accessibility scan), and a production build. One at a time, because each of them first
+      # regenerates the API client from services/api/openapi.json.
+      - run: pnpm exec nx run-many -t typecheck test build -p @speicherlotse/dashboard --parallel=1

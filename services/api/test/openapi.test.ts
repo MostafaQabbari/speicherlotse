@@ -83,7 +83,8 @@ test('every operation has a distinct operationId, and every data route asks for 
 });
 
 test('services/api/openapi.json is what the code produces (run: pnpm --filter @speicherlotse/api openapi)', () => {
-  const onDisk = readFileSync(new URL('../openapi.json', import.meta.url), 'utf8');
+  // Git on Windows may check the file out with CRLF line endings; the content is what counts.
+  const onDisk = readFileSync(new URL('../openapi.json', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
   assert.equal(onDisk, openApiText());
 });
 
