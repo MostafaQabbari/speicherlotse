@@ -1,5 +1,6 @@
 import pg from 'pg';
 import { MIN_SECRET_LENGTH } from './auth.ts';
+import { parseOrigins } from './cors.ts';
 import { createApp } from './create-app.ts';
 import { TenantDb } from './tenant-db.ts';
 
@@ -9,6 +10,13 @@ const HOST = process.env.HOST ?? '127.0.0.1';             // only this computer,
 const DB_POOL_MAX = Number(process.env.DB_POOL_MAX ?? 10);
 const STATEMENT_TIMEOUT_MS = Number(process.env.STATEMENT_TIMEOUT_MS ?? 5_000);
 const JWT_SECRET = process.env.JWT_SECRET ?? '';
+let CORS_ORIGINS: string[];
+try {
+  CORS_ORIGINS = parseOrigins(process.env.CORS_ORIGINS);
+} catch (error) {
+  console.error((error as Error).message);
+  process.exit(1);
+}
 
 for (const [name, v] of Object.entries({ PORT, DB_POOL_MAX, STATEMENT_TIMEOUT_MS })) {
   if (!Number.isInteger(v) || v < 1) {
@@ -26,9 +34,9 @@ const pool = new pg.Pool({ connectionString: DATABASE_URL, max: DB_POOL_MAX });
 // An idle connection that the database closes must not crash the process.
 pool.on('error', (error) => console.error(`idle database connection failed: ${error.message}`));
 
-const app = await createApp({ tenantDb: new TenantDb(pool, { statementTimeoutMs: STATEMENT_TIMEOUT_MS }), jwtSecret: JWT_SECRET });
+const app = await createApp({ tenantDb: new TenantDb(pool, { statementTimeoutMs: STATEMENT_TIMEOUT_MS }), jwtSecret: JWT_SECRET, corsOrigins: CORS_ORIGINS });
 await app.listen(PORT, HOST);
-console.log(`api: listening on http://${HOST}:${PORT}  database: ${DATABASE_URL.replace(/:[^:@/]*@/, ':***@')}`);
+console.log(`api: listening on http://${HOST}:${PORT}  database: ${DATABASE_URL.replace(/:[^:@/]*@/, ':***@')}  cors: ${CORS_ORIGINS.length > 0 ? CORS_ORIGINS.join(', ') : 'no other web page may call this API'}`);
 
 let stopping = false;
 const stop = async (signal: string): Promise<void> => {

@@ -1,0 +1,586 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Speicherlotse API",
+    "version": "0.1.0",
+    "description": "Read-only access to the devices, telemetry and alarm events of one tenant. The tenant is part of the token; the database enforces it (ADR-006). Development tokens only."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:3000",
+      "description": "local development"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "getHealth",
+        "tags": [
+          "health"
+        ],
+        "summary": "Is the API up and can it reach its database?",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Up",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "operationId": "getOpenApi",
+        "tags": [
+          "health"
+        ],
+        "summary": "This description",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The OpenAPI document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/devices": {
+      "get": {
+        "operationId": "listDevices",
+        "tags": [
+          "devices"
+        ],
+        "summary": "The devices of the caller's tenant",
+        "responses": {
+          "200": {
+            "description": "The devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevicesResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/devices/{id}/telemetry": {
+      "get": {
+        "operationId": "getDeviceTelemetry",
+        "tags": [
+          "devices"
+        ],
+        "summary": "Samples of one device, newest first",
+        "description": "A device of another tenant and a device that does not exist give the same 404.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Device id",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Oldest moment wanted (inclusive). A date and time with a time zone, for example 2026-10-10T12:00:00Z. Years 2000 to 2100.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Newest moment wanted (exclusive); must be after from. A date and time with a time zone, for example 2026-10-10T12:00:00Z. Years 2000 to 2100.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "How many rows at most, newest first. A larger number is refused, not cut.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The device and its samples",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelemetryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/alarms/events": {
+      "get": {
+        "operationId": "listAlarmEvents",
+        "tags": [
+          "alarms"
+        ],
+        "summary": "Alarm events (fired, resolved) of the caller's devices, newest first",
+        "description": "With deviceId, a device of another tenant and a device that does not exist give the same 404.",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "query",
+            "required": false,
+            "description": "Only this device",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Oldest moment wanted (inclusive). A date and time with a time zone, for example 2026-10-10T12:00:00Z. Years 2000 to 2100.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "Newest moment wanted (exclusive); must be after from. A date and time with a time zone, for example 2026-10-10T12:00:00Z. Years 2000 to 2100.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "How many rows at most, newest first. A larger number is refused, not cut.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlarmEventsResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "A development token: node services/api/src/token-cli.ts alpha"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "statusCode",
+          "error",
+          "message"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "statusCode": {
+            "type": "integer"
+          },
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          }
+        }
+      },
+      "Device": {
+        "type": "object",
+        "required": [
+          "deviceId",
+          "name"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "deviceId": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "DevicesResponse": {
+        "type": "object",
+        "required": [
+          "devices"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "devices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Device"
+            }
+          }
+        }
+      },
+      "TelemetrySample": {
+        "type": "object",
+        "required": [
+          "ts",
+          "bootId",
+          "seq",
+          "monoMs",
+          "values"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "ts": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Time on the device clock, UTC"
+          },
+          "bootId": {
+            "type": "string",
+            "pattern": "^[0-9]+$",
+            "description": "A whole number as text, because it can be larger than a JSON number holds exactly"
+          },
+          "seq": {
+            "type": "integer",
+            "description": "Counts samples since the device booted"
+          },
+          "monoMs": {
+            "type": "integer",
+            "description": "Milliseconds since the device booted"
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "The channels the device sent. A channel it did not send is left out.",
+            "properties": {
+              "pvW": {
+                "type": "number",
+                "description": "Solar generation, never negative (W)"
+              },
+              "loadW": {
+                "type": "number",
+                "description": "House consumption, without the wallbox (W)"
+              },
+              "evW": {
+                "type": "number",
+                "description": "Wallbox power into the car (W)"
+              },
+              "battW": {
+                "type": "number",
+                "description": "Battery power at the terminals: + charging, - discharging (W)"
+              },
+              "gridW": {
+                "type": "number",
+                "description": "Grid power: + import, - export (W)"
+              },
+              "battSoc": {
+                "type": "number",
+                "description": "Battery state of charge (%)"
+              },
+              "battSoh": {
+                "type": "number",
+                "description": "Battery state of health, 100 = like new (%)"
+              },
+              "battTempC": {
+                "type": "number",
+                "description": "Battery temperature (°C)"
+              },
+              "battVoltageV": {
+                "type": "number",
+                "description": "Battery pack voltage (V)"
+              },
+              "cellMvMin": {
+                "type": "number",
+                "description": "Lowest cell voltage in the pack (mV)"
+              },
+              "cellMvMax": {
+                "type": "number",
+                "description": "Highest cell voltage in the pack (mV)"
+              },
+              "gridHz": {
+                "type": "number",
+                "description": "Grid frequency (Hz)"
+              },
+              "gridVoltageV": {
+                "type": "number",
+                "description": "Grid voltage, one phase (V)"
+              },
+              "invTempC": {
+                "type": "number",
+                "description": "Inverter temperature (°C)"
+              },
+              "battStatus": {
+                "type": "number",
+                "description": "0 off, 1 standby, 2 charging, 3 discharging, 4 fault (code)"
+              },
+              "evStatus": {
+                "type": "number",
+                "description": "0 no car, 1 connected, 2 charging, 3 fault (code)"
+              }
+            }
+          }
+        }
+      },
+      "TelemetryResponse": {
+        "type": "object",
+        "required": [
+          "device",
+          "samples"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "device": {
+            "$ref": "#/components/schemas/Device"
+          },
+          "samples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TelemetrySample"
+            }
+          }
+        }
+      },
+      "AlarmEvent": {
+        "type": "object",
+        "required": [
+          "deviceId",
+          "ruleId",
+          "severity",
+          "event",
+          "at",
+          "atMs"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "deviceId": {
+            "type": "integer"
+          },
+          "ruleId": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "warning",
+              "critical"
+            ]
+          },
+          "event": {
+            "type": "string",
+            "enum": [
+              "fired",
+              "resolved"
+            ]
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "atMs": {
+            "type": "integer",
+            "description": "The same moment in milliseconds since 1970"
+          }
+        }
+      },
+      "AlarmEventsResponse": {
+        "type": "object",
+        "required": [
+          "events"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AlarmEvent"
+            }
+          }
+        }
+      }
+    }
+  }
+}

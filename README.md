@@ -22,8 +22,7 @@ A monitoring and energy-management cloud for home storage systems (PV, battery, 
 | `services/api` | NestJS HTTP API, read-only: a tenant's devices, telemetry and alarm events. The queries never mention the tenant; row-level security and a tenant-checking function in the database do (ADR-006). Development tokens (JWT) carry the tenant |
 | `docs/adr/` | Decision records: scope and numbers (001), storage schema (002), write path (003), alarm engine (004), notifier (005), API and tenant isolation (006) |
 | CI | Typecheck and all tests on every push, with a real PostgreSQL for the database tests |
-
-Packages contain no I/O and are covered by example tests and property-based tests (random inputs checked against rules such as "a battery never creates energy" and "alarms strictly alternate between fired and resolved"). The services are covered by tests with fake brokers, plus database tests against a real PostgreSQL. The Kafka adapter and the outage behaviour were also tried by hand against Redpanda and TimescaleDB (stop and start the database while the writer runs; no sample lost or doubled). The alarm engine was tried by hand too: a simulated overheating battery produced exactly four events at the expected times; restarting the engine in the middle of an alarm produced no duplicate; and rewinding Kafka to the start made the engine skip all 2,367 old samples and change nothing.
+ The API was tried by hand against the TimescaleDB hypertable too: each demo tenant saw only its own devices, a foreign device gave the same 404 as an unknown one, and the restricted database role could not read the telemetry table directly.
 
 ## Architecture
 
@@ -196,7 +195,7 @@ docs/adr/            architecture decision records
 - Notifications are delivered at least once: a crash at the wrong moment sends one twice, so the receiver has to drop duplicates by id. A notification that keeps failing is abandoned after 8 attempts and stays in the table for a person to look at; nothing replays it automatically (ADR-005).
 - Only a webhook and the console exist as notification channels. Old notifications are never deleted.
 - The API protects against mistakes in queries, not against someone who can run arbitrary SQL as its database role: the tenant is a session setting (ADR-006). Tokens are development tokens: one shared secret, no users, no revocation. There is no rate limit, no CORS and no TLS yet, and lists have no paging cursor.
-- The telemetry function behind the API was tested on plain PostgreSQL. Its behaviour on TimescaleDB chunks, compressed ones included, is not measured yet.
+- The API's telemetry function was tried by hand on an uncompressed TimescaleDB hypertable. Compressed chunks, and the API under load, are not tested yet.
 
 ## Data sources (planned)
 

@@ -7,6 +7,8 @@ import { AppModule, type AppModuleOptions } from './app.module.ts';
 
 export interface CreateAppOptions extends AppModuleOptions {
   logLevels?: LogLevel[] | false;
+  /** Web pages (origins, see cors.ts) that a browser may let call this API. None by default. */
+  corsOrigins?: readonly string[];
 }
 
 /** The whole HTTP application, not yet listening. Used by main.ts and by the tests. */
@@ -17,5 +19,10 @@ export async function createApp(options: CreateAppOptions): Promise<NestExpressA
     bodyParser: false,   // every route is a GET: there is no body to parse
   });
   app.disable('x-powered-by');
+  if (options.corsOrigins !== undefined && options.corsOrigins.length > 0) {
+    // Only GET and only the Authorization header. No cookies are used, so no `credentials`. The CORS layer answers the
+    // browser's preflight (OPTIONS) itself, before the guard, which is right: a preflight carries no token.
+    app.enableCors({ origin: [...options.corsOrigins], methods: ['GET'], allowedHeaders: ['Authorization'], maxAge: 600 });
+  }
   return app;
 }

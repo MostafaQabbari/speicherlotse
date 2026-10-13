@@ -7,7 +7,8 @@
     "start": "node --import tsx src/main.ts",
     "migrate": "node src/migrate-cli.ts",
     "seed": "node src/seed-cli.ts",
-    "token": "node src/token-cli.ts"
+    "token": "node src/token-cli.ts",
+    "openapi": "node src/openapi-cli.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.1.2",
@@ -23,6 +24,8 @@
   "devDependencies": {
     "@nestjs/testing": "^12.1.2",
     "@types/express": "^5.0.0",
-    "@types/pg": "^8.23.1"
+    "@types/pg": "^8.23.1",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
   }
 }

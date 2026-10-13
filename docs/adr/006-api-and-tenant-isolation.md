@@ -1,7 +1,6 @@
 # ADR-006: API and tenant isolation
 
-- Status: accepted. Verified with tests against a real PostgreSQL 18 (plain, without TimescaleDB): the isolation rules, the token checks and the parameter checks each have tests, and five protections were switched off in turn to check that a test fails. *To verify:* the telemetry function on the TimescaleDB hypertable (including compressed chunks), and the API under concurrent load.
-- Date: 2026-10-10
+- Status: accepted. Verified with tests against a real PostgreSQL 18 (plain, without TimescaleDB): the isolation rules, the token checks and the parameter checks each have tests, and five protections were switched off in turn to check that a test fails. Also tried by hand on 2026-10-13 against the TimescaleDB 2.29.2 hypertable, uncompressed, with 496 samples for each of 3 devices: tenant alpha saw devices 1 and 2, asking for beta's device 3 gave the same 404 as an unknown device, beta saw only device 3, a request without a token gave 401, and the restricted database role was refused a direct read of `telemetry`. *To verify:* compressed chunks, direct access to the chunks, and the API under concurrent load.
 
 ## Context
 
@@ -79,7 +78,7 @@ Invalid parameters give `400` with the reason: not a number, a limit that is too
 - **The connection user must not be used for tenant data directly.** `TenantDb.ping()` runs `select 1` as the connection user; nothing else does. Code that bypasses `TenantDb` would bypass the policies.
 - **`alarm_event` now has row-level security switched on.** The alarm engine and the notifier connect as the table owner, which the policies do not apply to, and a test checks that they still read and write everything and that the outbox trigger still fires. If one of them is ever run as a different, non-owner role, it needs its own policy or it will see nothing.
 - **Role creation is part of the migration and is cluster-wide.** It needs a user with `CREATEROLE` (or a superuser). The role stays when a schema or even a database is dropped, which is harmless: it owns nothing.
-- **Telemetry through a function is untested on TimescaleDB.** Plan-wise it should behave like the plain query (an index scan backward on the primary key); on compressed chunks, reading is slower and has not been measured.
+- **Telemetry through a function was tried by hand on an uncompressed TimescaleDB hypertable and works; compressed chunks are untested.** On compressed chunks, reading is slower and has not been measured.
 - **`ts` is the device clock.** Samples are ordered and filtered by it (ADR-002). A device with a wrong clock appears at the wrong time.
 - **No paging cursor.** Pages are time windows plus `limit`. `GET /v1/devices` returns all devices of the tenant: fine for hundreds, not for tens of thousands.
 - **A database timeout is a 500.** The statement timeout cancels a slow query; the caller sees the generic `500`, not "too slow".

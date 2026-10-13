@@ -2,6 +2,7 @@ import { Controller, Get, Inject, NotFoundException, Param, Query, UseGuards } f
 import { AuthGuard, CurrentPrincipal } from './auth.guard.ts';
 import type { Principal } from './auth.ts';
 import { one, onlyKnown, parseDeviceId, parseLimit, parseRange } from './params.ts';
+import { TELEMETRY_LIMIT } from './limits.ts';
 import { getDevice, listDevices, recentTelemetry, type DeviceView, type TelemetrySample } from './queries.ts';
 import { TenantDb } from './tenant-db.ts';
 
@@ -20,7 +21,7 @@ export class DevicesController {
     return { devices: await this.#db.withTenant(who.tenantId, listDevices) };
   }
 
-  /** Samples of one device, newest first. `from` (inclusive), `to` (exclusive), `limit` (1 to 1000, default 100). */
+  /** Samples of one device, newest first. `from` (inclusive), `to` (exclusive), `limit` (see limits.ts). */
   @Get(':id/telemetry')
   async telemetry(
     @CurrentPrincipal() who: Principal,
@@ -30,7 +31,7 @@ export class DevicesController {
     onlyKnown(query, ['from', 'to', 'limit']);
     const deviceId = parseDeviceId(idRaw, 'id');
     const { from, to } = parseRange(one(query.from, 'from'), one(query.to, 'to'));
-    const limit = parseLimit(one(query.limit, 'limit'), 100, 1_000);
+    const limit = parseLimit(one(query.limit, 'limit'), TELEMETRY_LIMIT.default, TELEMETRY_LIMIT.max);
     return this.#db.withTenant(who.tenantId, async (q) => {
       // Somebody else's device and a device that does not exist give the same answer.
       const device = await getDevice(q, deviceId);

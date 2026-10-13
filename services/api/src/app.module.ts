@@ -6,8 +6,12 @@ import { AlarmsController } from './alarms.controller.ts';
 import { AuthGuard, JWT_SECRET } from './auth.guard.ts';
 import { DevicesController } from './devices.controller.ts';
 import { HealthController } from './health.controller.ts';
+import { OpenApiController } from './openapi.controller.ts';
 import { ParamErrorFilter } from './param-error.filter.ts';
 import { TenantDb } from './tenant-db.ts';
+
+/** Every controller of the application. openapi.test.ts reads the routes from here and compares them with the OpenAPI description. */
+export const CONTROLLERS = [HealthController, OpenApiController, DevicesController, AlarmsController];
 
 export interface AppModuleOptions {
   tenantDb: TenantDb;
@@ -20,7 +24,7 @@ export class AppModule {
   static register(options: AppModuleOptions): DynamicModule {
     return {
       module: AppModule,
-      controllers: [HealthController, DevicesController, AlarmsController],
+      controllers: CONTROLLERS,
       providers: [
         { provide: TenantDb, useValue: options.tenantDb },
         { provide: JWT_SECRET, useValue: options.jwtSecret },
