@@ -2,11 +2,10 @@
 
 ![CI](https://github.com/MostafaQabbari/speicherlotse/actions/workflows/ci.yml/badge.svg)
 
-A monitoring and energy-management cloud for home storage systems (PV, battery, wallbox), built as a portfolio project. Simulated homes send telemetry; the cloud ingests it, stores it, raises alarms and shows it.
+A monitoring and energy-management cloud for home storage systems (PV, battery, wallbox).
 
-**Status: in progress.** The path from a simulated home to the database works end to end and is tested, including database outages. Alarms are raised from the same stream and announced by a notifier (webhook), with crash and redelivery handling. A read-only API serves devices, telemetry and alarm events to several tenants, and the database itself keeps one tenant away from another's data. An Angular dashboard shows a tenant's devices, latest values, one channel over time and alarm events; it was driven in a real browser against the real API, but it has no automated browser tests yet. This README says which is which.
+ The path from a simulated home to the database works end to end and is tested, including database outages. Alarms are raised from the same stream and announced by a notifier (webhook), with crash and redelivery handling. A read-only API serves devices, telemetry and alarm events to several tenants, and the database itself keeps one tenant away from another's data. An Angular dashboard shows a tenant's devices, latest values, one channel over time and alarm events; it was driven in a real browser against the real API, but it has no automated browser tests yet. This README says which is which.
 
-## What exists today
 
 | Piece | What it does |
 |---|---|
@@ -208,23 +207,6 @@ docs/adr/            architecture decision records
 nx.json              Nx: caching of the dashboard's targets
 ```
 
-## Roadmap
-
-- [x] Scope, numbers and decision record
-- [x] Shared telemetry model and one-home simulator
-- [x] Alarm state machine and rule layer
-- [x] CI
-- [x] Walking skeleton: simulator, MQTT, ingest, Redpanda, writer, TimescaleDB, with outage tests
-- [x] Alarm engine as a second Kafka consumer with persistent state
-- [x] Notifier: outbox, webhook, retries, order within an alarm
-- [ ] Fault-to-alarm report (needs the fleet simulator)
-- [ ] Fleet simulator (up to 1,000 systems) with fault injection (dropouts, glitches, clock jumps, reboots)
-- [ ] Load report v1 (rows/s through the whole chain, freshness, memory)
-- [x] NestJS API with multi-tenant row-level security (read-only, development tokens)
-- [x] CORS allow-list and a checked OpenAPI description of the API
-- [x] Angular dashboard (read-only), client generated from the API description, Nx as task runner
-- [ ] Storybook and automated browser tests for the dashboard
-- [ ] Chaos and load report v2 (backfill storm, kill tests, scale-out)
 
 ## Known limits
 
@@ -239,7 +221,7 @@ nx.json              Nx: caching of the dashboard's targets
 - The dashboard only reads, takes a pasted development token, shows the newest rows (no paging) and does not refresh by itself. It was driven by hand in Chromium (keyboard use, a wrong token, a foreign origin, phone width) against the API on a PostgreSQL without TimescaleDB; there are no automated browser tests yet.
 - Angular needs TypeScript 6.0, the rest of the repository uses TypeScript 7, so `apps/dashboard` carries its own version (ADR-007).
 
-## Data sources (planned)
+## Data sources 
 
 Real German open data will seed the simulator: the Marktstammdatenregister (installed PV and storage), HTW Berlin household load profiles, DWD weather via Bright Sky, and day-ahead prices from Energy-Charts.
 
