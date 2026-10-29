@@ -1,13 +1,10 @@
 # ADR-001: Scope and numbers
 
-- Status: accepted
-- Date: 2026-10-07
+
 
 ## Context
 
-Speicherlotse is a monitoring and energy-management cloud for home storage systems (PV, battery, wallbox). It is a portfolio project built part-time by one person, which sets two hard limits: the core build has to fit in roughly 120 to 130 hours, and the demo has to run on one laptop.
-
-At the same time, the design should be honest about real-product scale. The interesting engineering problems (ingest rate, storage growth, burst handling) only appear at scale, and a design that only works for ten simulated systems proves nothing.
+Speicherlotse is a monitoring and energy-management cloud for home storage systems (PV, battery, wallbox). 
 
 Before choosing technology we need numbers: how much data arrives, how much we store, and how bad a burst can get. Every later decision (batching, a log between ingest and storage, compression, retention) is justified or rejected against the numbers in this document.
 
