@@ -1,7 +1,6 @@
 # ADR-002: Storage schema and write path
 
 - Status: accepted. Row size, compression and write speed measured on TimescaleDB 2.29.2 (see Consequences); inserts into already compressed chunks are not measured yet.
-- Date: 2026-10-09
 
 ## Context
 
